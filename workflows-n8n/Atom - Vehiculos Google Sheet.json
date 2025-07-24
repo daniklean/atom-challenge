@@ -1,0 +1,598 @@
+{
+  "name": "Atom - Vehiculos Google Sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "daysInterval": 2,
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1020,
+        -60
+      ],
+      "id": "cc31961f-b946-4d40-ac04-30e13d1940be",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "10nhcnb1OcUiBpL50f2VW_z64iraPf6oOyItc0te9yTI",
+          "mode": "list",
+          "cachedResultName": "Vehiculos TEST",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10nhcnb1OcUiBpL50f2VW_z64iraPf6oOyItc0te9yTI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1780318728,
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10nhcnb1OcUiBpL50f2VW_z64iraPf6oOyItc0te9yTI/edit#gid=1780318728"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -660,
+        -60
+      ],
+      "id": "db3ad865-462f-44d8-bb29-6f3e9cbd4c49",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KTIrgFRtWjvlLeUB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -220,
+        -60
+      ],
+      "id": "40db5cee-eee2-4f59-9277-65e829691e13",
+      "name": "Loop Over Items",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        20,
+        -180
+      ],
+      "id": "4291206a-e0d5-4c51-918a-7b8aa697c89a",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Objeto para almacenar los grupos\nconst groups = {};\n\n// Recorremos todos los items que vienen del nodo de Google Sheets\nfor (const item of $input.all()) {\n  // Creamos una clave única, ej: \"SUV-Toyota\"\n  const key = `${item.json.Tipo}-${item.json.Marca}`;\n\n  // Si el grupo para esta clave no existe, lo inicializamos\n  if (!groups[key]) {\n    groups[key] = {\n      Tipo: item.json.Tipo,\n      Marca: item.json.Marca,\n      // Creamos un arreglo para guardar todos los autos de este grupo\n      records: []\n    };\n  }\n\n  // Añadimos el auto actual (su información completa) al grupo correspondiente\n  groups[key].records.push(item.json);\n}\n\n// El nodo devolverá un arreglo con todos los grupos creados\nreturn Object.values(groups);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        -60
+      ],
+      "id": "d4af9d73-f270-4362-87e0-6d5a5940c98b",
+      "name": "Organizar Data: TIpo - Marca"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$('Variables de AIRTABLE').item.json.baseID}}/{{ $('Loop Over Items').item.json.Tipo }} - {{ $('Loop Over Items').item.json.Marca }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pataPd4RHDBm6lOYs.f246e05340a4a3078543d2d5cff5b6cc7888d94d01f2e5eff84ce9e2d5b4002a"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  {{ JSON.stringify($json.recordsToUpdate) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        -440
+      ],
+      "id": "965e0d38-7f5e-4657-9b76-2c5bda92a4fa",
+      "name": "Actualizar Records: Tipo - Marca",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{ $json.baseID }}/{{ $json.Tipo }} - {{$json.Marca}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pataPd4RHDBm6lOYs.f246e05340a4a3078543d2d5cff5b6cc7888d94d01f2e5eff84ce9e2d5b4002a"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{$json.Tipo}} - {{$json.Marca}}\",\n  \"description\": \"Tabla de vehículos organizada por tipo y marca.\",\n  \"fields\": [\n    {\n      \"name\": \"Modelo\",\n      \"type\": \"singleLineText\"\n    },\n    {\n      \"name\": \"Año\",\n      \"type\": \"number\",\n      \"options\": {\n        \"precision\": 0\n      }\n    },\n    {\n      \"name\": \"Información General\",\n      \"type\": \"multilineText\"\n    },\n    {\n      \"name\": \"Precio (USD)\",\n      \"type\": \"currency\",\n      \"options\": {\n        \"symbol\": \"$\",\n        \"precision\": 2\n      }\n    },\n    {\n      \"name\": \"Estado\",\n      \"type\": \"singleSelect\",\n      \"options\": {\n        \"choices\": [\n          { \"name\": \"Excelente\" },\n          { \"name\": \"Bueno\" },\n          { \"name\": \"Regular\" }\n        ]\n      }\n    },\n    {\n      \"name\": \"Último Mantenimiento\",\n      \"type\": \"date\",\n      \"options\": {\n        \"dateFormat\": {\n          \"name\": \"iso\"\n        }\n      }\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        -40
+      ],
+      "id": "787560b1-e9e2-47ff-9f74-b374f4e7bfa4",
+      "name": "Listar Registros Existentes",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.airtable.com/v0/meta/bases/{{ $json.baseID }}/tables",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pataPd4RHDBm6lOYs.f246e05340a4a3078543d2d5cff5b6cc7888d94d01f2e5eff84ce9e2d5b4002a"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{$json.Tipo}} - {{$json.Marca}}\",\n  \"description\": \"Tabla de vehículos organizada por tipo y marca.\",\n  \"fields\": [\n    {\n      \"name\": \"row_number\",\n      \"type\": \"number\",\n      \"options\": {\n        \"precision\": 0\n      }\n    },\n    {\n      \"name\": \"Tipo\",\n      \"type\": \"singleLineText\"\n    },\n    {\n      \"name\": \"Marca\",\n      \"type\": \"singleLineText\"\n    },\n    {\n      \"name\": \"Modelo\",\n      \"type\": \"singleLineText\"\n    },\n    {\n      \"name\": \"Año\",\n      \"type\": \"number\",\n      \"options\": {\n        \"precision\": 0\n      }\n    },\n    {\n      \"name\": \"Información General\",\n      \"type\": \"multilineText\"\n    },\n    {\n      \"name\": \"Precio (USD)\",\n      \"type\": \"currency\",\n      \"options\": {\n        \"symbol\": \"$\",\n        \"precision\": 2\n      }\n    },\n    {\n      \"name\": \"Estado\",\n      \"type\": \"singleSelect\",\n      \"options\": {\n        \"choices\": [\n          { \"name\": \"Excelente\" },\n          { \"name\": \"Muy bueno\" },\n          { \"name\": \"Bueno\" },\n          { \"name\": \"Regular\" }\n        ]\n      }\n    },\n    {\n      \"name\": \"Último Mantenimiento\",\n      \"type\": \"date\",\n      \"options\": {\n        \"dateFormat\": {\n          \"name\": \"iso\"\n        }\n      }\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        20
+      ],
+      "id": "08aea29c-1d64-4cd2-ba6d-e772fb9b99b6",
+      "name": "Crear Tabla por Tipo - Marca",
+      "alwaysOutputData": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.airtable.com/v0/{{ $('Variables de AIRTABLE').item.json.baseID }}/{{ $('Variables de AIRTABLE').item.json.Tipo }} - {{ $('Variables de AIRTABLE').item.json.Marca }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pataPd4RHDBm6lOYs.f246e05340a4a3078543d2d5cff5b6cc7888d94d01f2e5eff84ce9e2d5b4002a"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\"records\": {{ JSON.stringify($('Loop Over Items').item.json.records.map(record => ({ \"fields\": record }))) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        120
+      ],
+      "id": "a3aaa4ca-7941-4f93-978a-1c6336d75049",
+      "name": "Insertar Records para la tabla previa"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1605153-273c-44e8-bd4c-ff3679eec582",
+              "name": "baseID",
+              "value": "=appJ7sTV3sOFfHyD8",
+              "type": "string"
+            },
+            {
+              "id": "68702f6f-c0d3-404a-b9dc-62723d7b54c9",
+              "name": "Tipo",
+              "value": "={{ $json.Tipo }}",
+              "type": "string"
+            },
+            {
+              "id": "652b5c98-0f11-4dcd-a718-95a6b8c1238a",
+              "name": "Marca",
+              "value": "={{ $json.Marca }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        20,
+        -40
+      ],
+      "id": "baf4d0ad-cd01-4093-ad07-581c693e3ded",
+      "name": "Variables de AIRTABLE"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Los datos nuevos que vienen de Google Sheets (del grupo actual)\nconst newSheetRecords = $('Loop Over Items').first().json.records\n\n// Los registros que ya existen en Airtable (del nodo anterior 'Listar Registros')\n// Asegúrate de que el nombre del nodo sea el correcto.\nconst existingAirtableRecords = $items(\"Listar Registros Existentes\")[0].json.records;\n\n// 1. Crear un mapa para buscar fácilmente el ID de Airtable usando el 'Sheet Row Number'\nconst airtableIdMap = new Map();\nfor (const record of existingAirtableRecords) {\n  const sheetRow = record.fields[\"row_number\"];\n  if (sheetRow) {\n    airtableIdMap.set(sheetRow, record.id);\n  }\n}\n\n// 2. Preparar los arreglos para la API\nconst recordsToUpdate = []; // Para la petición PATCH\nconst recordsToCreate = []; // Para la petición POST\n\n// 3. Clasificar cada registro de Google Sheets\nfor (const newRecord of newSheetRecords) {\n  const airtableId = airtableIdMap.get(newRecord.row_number);\n\n  // PREPARAMOS LOS CAMPOS A ENVIAR\n  const fieldsPayload = {\n      \"row_number\": newRecord.row_number,\n      \"Tipo\": newRecord.Tipo,\n      \"Marca\": newRecord.Marca,\n      \"Modelo\": newRecord.Modelo,\n      \"Año\": newRecord.Año,\n      \"Información General\": newRecord[\"Información General\"],\n      \"Precio (USD)\": newRecord[\"Precio (USD)\"],\n      \"Estado\": newRecord.Estado,\n      \"Último Mantenimiento\": newRecord[\"Último Mantenimiento\"],\n\n  };\n\n  if (airtableId) {\n    // Si encontramos el ID, el registro existe y se debe ACTUALIZAR\n    recordsToUpdate.push({\n      id: airtableId,\n      fields: fieldsPayload\n    });\n  } else {\n    // Si no, el registro es nuevo y se debe CREAR\n    recordsToCreate.push({\n      fields: fieldsPayload\n    });\n  }\n}\n\n// 4. Devolver ambos arreglos para usarlos en los siguientes nodos\nreturn [{\n  json: {\n    recordsToUpdate,\n    recordsToCreate\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        -300
+      ],
+      "id": "376bcb61-3fd1-41fd-8441-fe150cbfc5ef",
+      "name": "Buscar Coincidencias Sheet - Airtable"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5c16509b-2f98-4f39-84fa-f539bdbff412",
+              "leftValue": "={{ $json.recordsToUpdate.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        460,
+        -420
+      ],
+      "id": "78ee59ca-20c3-4b5a-9957-70ade2ecd978",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5c16509b-2f98-4f39-84fa-f539bdbff412",
+              "leftValue": "={{ $json.recordsToCreate.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        460,
+        -240
+      ],
+      "id": "a76d04d2-5475-4c9a-9d52-eb3c14c2d48a",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.airtable.com/v0/{{ $('Variables de AIRTABLE').item.json.baseID }}/{{ $('Variables de AIRTABLE').item.json.Tipo }} - {{ $('Variables de AIRTABLE').item.json.Marca }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pataPd4RHDBm6lOYs.f246e05340a4a3078543d2d5cff5b6cc7888d94d01f2e5eff84ce9e2d5b4002a"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"records\": {{JSON.stringify($json.recordsToCreate) }}\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        -260
+      ],
+      "id": "86cef657-4315-42c3-9500-3e987d1afbc3",
+      "name": "Insertar Records para la tabla previa1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        -360
+      ],
+      "id": "5abb8237-15ed-40e7-a0b8-cf799f4a6a6b",
+      "name": "Retornar items"
+    }
+  ],
+  "pinData": {
+    "Schedule Trigger": [
+      {
+        "json": {
+          "timestamp": "2025-07-23T03:06:26.920-04:00",
+          "Readable date": "July 23rd 2025, 3:06:26 am",
+          "Readable time": "3:06:26 am",
+          "Day of week": "Wednesday",
+          "Year": "2025",
+          "Month": "July",
+          "Day of month": "23",
+          "Hour": "03",
+          "Minute": "06",
+          "Second": "26",
+          "Timezone": "America/Caracas (UTC-04:00)"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Organizar Data: TIpo - Marca",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Variables de AIRTABLE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Organizar Data: TIpo - Marca": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Registros Existentes": {
+      "main": [
+        [
+          {
+            "node": "Buscar Coincidencias Sheet - Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Tabla por Tipo - Marca",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Tabla por Tipo - Marca": {
+      "main": [
+        [
+          {
+            "node": "Insertar Records para la tabla previa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variables de AIRTABLE": {
+      "main": [
+        [
+          {
+            "node": "Listar Registros Existentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Records para la tabla previa": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Coincidencias Sheet - Airtable": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Records: Tipo - Marca",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Insertar Records para la tabla previa1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Records: Tipo - Marca": {
+      "main": [
+        [
+          {
+            "node": "Retornar items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Records para la tabla previa1": {
+      "main": [
+        [
+          {
+            "node": "Retornar items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retornar items": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3d04ce8e-c274-43d8-ba7c-1f4428962b93",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7c1afa257580e985667234806bb9e505d48a365ba0c1fb1eb20167a358edff19"
+  },
+  "id": "D8Cmf1m0LJAPwNbE",
+  "tags": [
+    {
+      "createdAt": "2025-07-22T02:31:12.369Z",
+      "updatedAt": "2025-07-22T02:31:12.369Z",
+      "id": "SNLaVGkcCsXuZpHe",
+      "name": "Atom"
+    }
+  ]
+}

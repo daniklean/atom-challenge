@@ -1,0 +1,197 @@
+{
+  "name": "Atom - API Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "enviar-tipo-marca",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        -20
+      ],
+      "id": "7b349e41-8867-4114-af34-412ec7ae3fcb",
+      "name": "Webhook",
+      "webhookId": "ed1128ff-6d69-4d60-bd6e-bd877d5e2af0"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "10nhcnb1OcUiBpL50f2VW_z64iraPf6oOyItc0te9yTI",
+          "mode": "list",
+          "cachedResultName": "Vehiculos TEST",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10nhcnb1OcUiBpL50f2VW_z64iraPf6oOyItc0te9yTI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1780318728,
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10nhcnb1OcUiBpL50f2VW_z64iraPf6oOyItc0te9yTI/edit#gid=1780318728"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -380,
+        -20
+      ],
+      "id": "c27f73dc-c5b8-493d-b7d6-77f0c9e060bc",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KTIrgFRtWjvlLeUB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1240de73-dda0-49cd-88dc-fac64f1f3a87",
+              "leftValue": "={{$json.Tipo}}",
+              "rightValue": "={{ $('Webhook').item.json.query.tipo }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "d174ad0d-89aa-4ddc-82cf-a421fc158fab",
+              "leftValue": "={{ $json.Marca }}",
+              "rightValue": "={{ $('Webhook').item.json.query.marca }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -180,
+        -20
+      ],
+      "id": "fe29f2e5-ec9f-42b4-92ec-fdaf588b71dd",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "fieldName": "Año"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [
+        40,
+        -20
+      ],
+      "id": "8b6abc58-edea-4b46-8d33-8cc0e1a9cc49",
+      "name": "Sort"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        240,
+        -20
+      ],
+      "id": "c7e7cda0-6abd-42b4-8b98-f047a5148f40",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Sort",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8ae5dcf4-737d-4315-9697-27f127db1838",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7c1afa257580e985667234806bb9e505d48a365ba0c1fb1eb20167a358edff19"
+  },
+  "id": "WqTQMulN9YMqW4ow",
+  "tags": [
+    {
+      "createdAt": "2025-07-22T02:31:12.369Z",
+      "updatedAt": "2025-07-22T02:31:12.369Z",
+      "id": "SNLaVGkcCsXuZpHe",
+      "name": "Atom"
+    }
+  ]
+}
