@@ -1,0 +1,951 @@
+{
+  "name": "auto_IG_generator_poster_#3",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "29704527-177e-43ba-9add-0283819161b3",
+      "name": "Weekly Schedule (Monday 9 AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -420,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU",
+          "mode": "list",
+          "cachedResultName": "instagram content history",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "c4200000-842d-49d6-a79d-c58ac1d80fce",
+      "name": "Fetch Batch Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -100,
+        -420
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Hs12up00RYeUYhHs",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let batchItems = $input.all()\nif (!Array.isArray(batchItems)) {\n  batchItems = [batchItems];\n}\nif (batchItems.length === 0) {\n  console.log(\"No hay items pendientes para revisión. Deteniendo el flujo.\");\n  return [];\n}\n\nconst currentDate = new Date();\nconst startOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 1));\nconst batchId = `batch_${startOfWeek.getFullYear()}_${String(startOfWeek.getMonth() + 1).padStart(2, '0')}_${String(startOfWeek.getDate()).padStart(2, '0')}`;\n\n// --- Preparación de los datos para el correo de aprobación ---\nconst approvalData = {\n  batchId: batchId,\n  totalItems: batchItems.length,\n  reviewDeadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],\n  items: batchItems\n    .filter(item => item && item.json)\n    .map((item, index) => ({\n      id: item.json['row_number'] || index + 1,\n      eventName: item.json['Column Event'],\n      eventDate: item.json['Date'],\n      description: item.json['Description'],\n      igStoryCaption: item.json['Img igStoryCaption'],\n      textOverlay: item.json['Img textOverlay'],\n      imgUrlImgbb: item.json['Img URL (imgbb)'],\n      imgUrlBannerbear: item.json['Img URL (bannerbear)'],\n      imgUrlGoogleDrive: item.json['Img URL (google drive)'],\n      batchIdField: item.json['Batch ID'],\n      status: item.json['Status']\n    }))\n};\n\nreturn approvalData;"
+      },
+      "id": "9233cf15-6481-46a1-9769-03fa4d40234b",
+      "name": "Prepare Batch Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        100,
+        -420
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "condition_1",
+              "leftValue": "={{ $json.totalItems }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "fcf2b915-a9ff-459e-9079-d5e365d94ed7",
+              "leftValue": "={{ $json.items.some(item => item.status === 'Pending Review') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "0760f39b-c72e-40e0-b7fd-bc620b933b12",
+      "name": "Check Items Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [
+        340,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst batchData = $json; // \nif (!batchData) {\n  throw new Error(\"No se recibieron datos del nodo anterior.\");\n}\n\nconst recipientEmail = $('Set Variables').first().json.APPROVAL_EMAIL_RECIPIENT\nconst formUrl = $('Set Variables').first().json.GOOGLE_FORM_APPROVAL_URL\n\nconst sheetId = $('Set Variables').first().json.sheetId\n\nif (!recipientEmail || !formUrl || !sheetId) {\n  throw new Error(\"Asegúrate de que 'APPROVAL_EMAIL_RECIPIENT', 'GOOGLE_FORM_APPROVAL_URL' y 'sheetId' existan y se pasen correctamente.\");\n}\n\nconst reviewUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0`;\n\nconst emailHtml = `<!DOCTYPE html>\n<html>\n<head>\n    <style>\n        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }\n        .container { max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }\n        .header { background-color: #f4f4f4; padding: 20px; text-align: center; border-radius: 5px; }\n        .content { margin: 20px 0; }\n        .item { border-bottom: 1px solid #eee; margin-bottom: 15px; padding-bottom: 15px; }\n        .item:last-child { border-bottom: none; }\n        .buttons { text-align: center; margin: 30px 0; }\n        .button { display: inline-block; padding: 12px 25px; margin: 5px; text-decoration: none; border-radius: 5px; font-weight: bold; }\n        .review-btn { background-color: #007bff; color: white; }\n        .approve-btn { background-color: #28a745; color: white; }\n        .deadline { color: #dc3545; font-weight: bold; }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h2>Weekly Content Review</h2>\n        </div>\n        <div class=\"content\">\n            <p><strong>Total Items:</strong> ${batchData.totalItems}</p>\n            <p class=\"deadline\"><strong>Deadline:</strong> ${batchData.reviewDeadline}</p>\n        </div>\n        <div class=\"buttons\">\n            <a href=\"${reviewUrl}\" class=\"button review-btn\">Review in Google Sheets</a>\n            <a href=\"${formUrl}\" class=\"button approve-btn\">Google Form - Approval or Reject</a>\n        </div>\n        <div class=\"content\">\n            <h3>Weekly Content for Review:</h3>\n            ${\n              (batchData.items || []).map(item => `\n                <div class=\"item\">\n                    <h4>${item.eventName} (${item.eventDate})</h4>\n                    <p><strong>Description:</strong> ${item.description}</p>\n                    <p><strong>Image:</strong> <a href=\"${item.imgUrlBannerbear}\" target=\"_blank\">Show Image</a></p>\n                </div>\n              `).join('')\n            }\n        </div>\n    </div>\n</body>\n</html>\n`;\n\nreturn {\n  html: emailHtml,\n  subject: `Weekly Content Review - ${batchData.totalItems} items pending (Due: ${batchData.reviewDeadline})`,\n  to: recipientEmail\n};"
+      },
+      "id": "fde7e78b-9be3-4cd9-ba6b-7115a05951bf",
+      "name": "Create Approval Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        -640
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Set Variables').item.json.slackChannel }}",
+          "mode": "id"
+        },
+        "text": "Approval Process:\nError: No content items found for weekly approval ",
+        "otherOptions": {}
+      },
+      "id": "1c583ac0-b6d5-4c82-820c-a089820d61cf",
+      "name": "Slack No Items Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        -260
+      ],
+      "webhookId": "be808ab0-d771-43ec-9e32-ac2f1b4c4288",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "fI80oLrxpHJobxjP",
+          "name": "Slack account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU",
+          "mode": "list",
+          "cachedResultName": "instagram content history",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 935218977,
+          "mode": "list",
+          "cachedResultName": "Logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit#gid=935218977"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Call Log": "Approval Process:|Error: No content items found for weekly approval "
+          },
+          "matchingColumns": [
+            "Call Log"
+          ],
+          "schema": [
+            {
+              "id": "Call Log",
+              "displayName": "Call Log",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b51a7362-3d4c-4dc4-8929-dad90cf33945",
+      "name": "Log Error to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        740,
+        -260
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Hs12up00RYeUYhHs",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "sheetId",
+              "stringValue": "1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU"
+            },
+            {
+              "name": "contentGenerationWorkflowId",
+              "stringValue": "="
+            },
+            {
+              "name": "slackChannel"
+            },
+            {
+              "name": "APPROVAL_EMAIL_RECIPIENT",
+              "stringValue": "john@launchpadfast.com"
+            },
+            {
+              "name": "GOOGLE_FORM_APPROVAL_URL",
+              "stringValue": "test"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9222c9b0-459f-45a7-b11c-a5dcd921be17",
+      "name": "Set Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        -260,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        920,
+        -640
+      ],
+      "id": "67494ba9-01c5-45ec-a04d-73d29ea69ddd",
+      "name": "Gmail",
+      "webhookId": "e6287f84-1d78-433e-859f-eb866570f26a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "M0RPdSfJSglNDR0u",
+          "name": "Gmail account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "0 9 */2 * * *"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU",
+          "mode": "list",
+          "cachedResultName": "instagram content history",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit#gid=0"
+        },
+        "options": {
+          "columnsToWatch": [
+            "Status"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -860,
+        -1040
+      ],
+      "id": "2438fbc4-f168-45ab-9ea7-8dcae7b2a244",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "tgFcdZotKCYTBBzf",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Set Variables').item.json.slackChannel }}",
+          "mode": "id"
+        },
+        "text": "Approval Process: Skipped: No content status with Reject or Accept found for Human ",
+        "otherOptions": {}
+      },
+      "id": "8c508df9-e0e5-4b98-8a83-c3915d637e23",
+      "name": "Slack No Items Notification1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        -1380
+      ],
+      "webhookId": "be808ab0-d771-43ec-9e32-ac2f1b4c4288",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "fI80oLrxpHJobxjP",
+          "name": "Slack account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{\n}}",
+          "mode": "id"
+        },
+        "text": "Weekly content approval email sent successfully",
+        "otherOptions": {}
+      },
+      "id": "fedd2c3f-ea1b-43f8-82e8-5e5015d816bf",
+      "name": "Slack Success Update Row Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        860,
+        -1120
+      ],
+      "webhookId": "abc86906-9de3-454c-ac66-8b8fd1844bec",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "fI80oLrxpHJobxjP",
+          "name": "Slack account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{\n}}",
+          "mode": "id"
+        },
+        "text": "Weekly content approval email sent successfully",
+        "otherOptions": {}
+      },
+      "id": "43b093c9-6725-4800-888e-d7936d9f3304",
+      "name": "Slack Success Email Notification1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1640,
+        -640
+      ],
+      "webhookId": "abc86906-9de3-454c-ac66-8b8fd1844bec",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "fI80oLrxpHJobxjP",
+          "name": "Slack account 3"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ==============================================\n// VERSIÓN MEJORADA Y COMPATIBLE\n// ==============================================\n\n// Generar el Batch ID actual\nconst currentDate = new Date();\nconst startOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 1));\nconst newBatchId = `batch_${startOfWeek.getFullYear()}_${String(startOfWeek.getMonth() + 1).padStart(2, '0')}_${String(startOfWeek.getDate()).padStart(2, '0')}`;\n\n// ID GOOGLE SHEET ID\nconst spreadsheetId = $('Set Variables').first().json.sheetId;\n\n// Datos de entrada del nodo anterior\nconst readData = $input.first().json;\nconst rows = readData.values || [];\nconst dataRows = rows.slice(1); // Omitir la fila de encabezado\n\nconst updates = [];\nconst processLog = {\n  totalRows: dataRows.length,\n  batchIdInserted: 0,\n  statusUpdated: 0,\n  skipped: 0\n};\n\n// Itera sobre cada fila de datos\nfor (let i = 0; i < dataRows.length; i++) {\n  const rowNumber = i + 2; // El número de fila real en la hoja de cálculo\n  const row = dataRows[i] || [];\n  \n  const columnI = row[0] || '';\n  const columnJ = row[1] || '';\n  \n  const isColumnIEmpty = columnI.trim() === '';\n  const isColumnJPending = columnJ === 'Pending Review';\n\n  // Si la columna I está vacía, se debe insertar el Batch ID\n  if (isColumnIEmpty) {\n    updates.push({\n      range: `I${rowNumber}`,\n      values: [[newBatchId]]\n    });\n    processLog.batchIdInserted++;\n  }\n\n  // Si la columna J es 'Pending Review' Y la columna I está vacía o ya tiene el Batch ID correcto,\n  // entonces se actualiza el estado a 'Tracking'.\n  // Esta lógica unificada evita repetir el código.\n  if (isColumnJPending && (isColumnIEmpty || columnI === newBatchId)) {\n    updates.push({\n      range: `J${rowNumber}`,\n      values: [['Tracking']]\n    });\n    processLog.statusUpdated++;\n  }\n\n  // Si no se hizo ninguna actualización en esta fila, se cuenta como omitida\n  if (!isColumnIEmpty && !(isColumnJPending && columnI === newBatchId)) {\n    processLog.skipped++;\n  }\n}\n\n// CAMBIO PRINCIPAL: Se retorna un arreglo con un solo objeto.\n// Esto asegura la compatibilidad con los nodos siguientes en n8n.\nreturn [{\n  spreadsheetId: spreadsheetId,\n  batchUpdatePayload: {\n    valueInputOption: 'USER_ENTERED',\n    data: updates\n  },\n  processLog: processLog,\n  batchId: newBatchId\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -640
+      ],
+      "id": "07710332-cd6f-4751-a306-c57327f9dca3",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/values/I:J",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        -640
+      ],
+      "id": "8c547c1e-8caa-4750-9e36-b163b2188375",
+      "name": "Get Data Google Sheet Bacht ID and Status",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Hs12up00RYeUYhHs",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.first().json.items.filter(item => item.status === 'Pending Review');\nreturn items.map(item => ({ json: item }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -640
+      ],
+      "id": "96ff7233-8b18-4143-a606-98af131258b6",
+      "name": "New Array with Pending Review to Process"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Este código asume que el nodo recibe la lista completa de items a revisar\n\n// 1. Obtiene todos los items de la entrada\nconst allItems = $input.all()[0].json;\n\n// 2. Encuentra la fila \"disparadora\" - la que un humano cambió a 'Accept' o 'Reject'\nconst triggerItem = allItems.items.find(item =>\n  item.status === 'Accept' || item.status === 'Reject'\n);\n\n// 3. Si no se encuentra ninguna fila para procesar, el flujo se detiene aquí.\nif (!triggerItem) {\n  console.log(\"No se encontraron filas con estado 'Accept' o 'Reject'. No se hace nada.\");\n  return [];\n}\n\n// 4. Extrae la información clave de la fila disparadora\nconst targetBatchId = triggerItem.batchIdField;\nconst newStatus = `${triggerItem.status} Status`; // Crea el estado final, ej: \"Accept Status\" // Crea el estado final, ej: \"Accept Status\"\nconst spreadsheetId = \"1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU\";\n\n// 5. Prepara el arreglo de actualizaciones\nconst updates = [];\n\n// 6. Itera sobre TODOS los items para encontrar los que coinciden con el Batch ID\nfor (const item of allItems.items) {\n  const rowData = item;\n  const rowNumber = rowData.id;\n  const currentBatchId = rowData.batchIdField;\n  const currentStatus = rowData.status;\n\n  // CONDICIÓN PRINCIPAL:\n  // Actualiza si...\n  // - La fila no es la cabecera (rowNumber > 1)\n  // - El Batch ID coincide con el que buscamos\n  // - El estado actual no es ya el estado final (para evitar bucles infinitos)\n  if (rowNumber > 1 && currentBatchId === targetBatchId && currentStatus !== newStatus) {\n    updates.push({\n      range: `J${rowNumber}`, // Actualiza la columna J de la fila correcta\n      values: [[newStatus]]\n    });\n  }\n}\n\n// 7. Retorna el payload para la API de Google Sheets\nreturn [{\n  json: {\n    spreadsheetId: spreadsheetId,\n    batchUpdatePayload: {\n      valueInputOption: 'USER_ENTERED',\n      data: updates\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        -1040
+      ],
+      "id": "be540db2-92e4-4f36-9568-77904f52f6ff",
+      "name": "New Array with Accept and Reject to Process"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $input.first().json.spreadsheetId }}/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $input.first().json.batchUpdatePayload }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1460,
+        -640
+      ],
+      "id": "319a5f9b-3ff4-4b2e-964a-76e1933170ec",
+      "name": "Update Data Paralleling by API Google Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Hs12up00RYeUYhHs",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "sheetId",
+              "stringValue": "1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU"
+            },
+            {
+              "name": "contentGenerationWorkflowId",
+              "stringValue": "="
+            },
+            {
+              "name": "slackChannel"
+            },
+            {
+              "name": "APPROVAL_EMAIL_RECIPIENT",
+              "stringValue": "john@launchpadfast.com"
+            },
+            {
+              "name": "GOOGLE_FORM_APPROVAL_URL",
+              "stringValue": "test"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "186271ca-ee32-477b-80fc-1bc374ba5b7e",
+      "name": "Set Variables1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        -700,
+        -1040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let batchItems = $input.all()\nif (!Array.isArray(batchItems)) {\n  batchItems = [batchItems];\n}\nif (batchItems.length === 0) {\n  console.log(\"No hay items pendientes para revisión. Deteniendo el flujo.\");\n  return [];\n}\n\n// --- Preparación de los datos para el correo de aprobación ---\nconst approvalData = {\n  batchId: $input.first().json['Batch ID'],\n  totalItems: batchItems.length,\n  reviewDeadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],\n  items: batchItems\n    .filter(item => item && item.json)\n    .map((item, index) => ({\n      id: item.json['row_number'] || index + 1,\n      eventName: item.json['Column Event'],\n      eventDate: item.json['Date'],\n      description: item.json['Description'],\n      igStoryCaption: item.json['Img igStoryCaption'],\n      textOverlay: item.json['Img textOverlay'],\n      imgUrlImgbb: item.json['Img URL (imgbb)'],\n      imgUrlBannerbear: item.json['Img URL (bannerbear)'],\n      imgUrlGoogleDrive: item.json['Img URL (google drive)'],\n      batchIdField: item.json['Batch ID'],\n      status: item.json['Status']\n    }))\n};\n\nreturn approvalData;"
+      },
+      "id": "06331c48-23e4-4dfc-83ce-ef10609ffcb9",
+      "name": "Prepare Batch Summary1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -540,
+        -1040
+      ],
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $input.first().json.spreadsheetId }}/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $input.first().json.batchUpdatePayload }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        -1040
+      ],
+      "id": "d61dc9ec-f27c-4f22-a3b6-cd3523a2d121",
+      "name": "Update Data Paralleling by API Google Sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Hs12up00RYeUYhHs",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtiene los items del paso anterior\nconst items = $input.all()[0];\nconsole.log((items))\n\n\n\n// Filtra la lista para obtener solo los que cumplen la condición\nconst filteredItems = items.json.items.filter(item =>\n  ['Accept', 'Reject'].includes(item.status)\n);\n\n// Retorna la nueva lista que contiene SOLO los items filtrados\nreturn filteredItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        -1140
+      ],
+      "id": "6523e53e-1f58-48ee-9d6a-91b6ec912a86",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "condition_1",
+              "leftValue": "={{ $json.totalItems }}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "cecea73a-3786-4a84-933f-a15070fffc46",
+              "leftValue": "={{ $json.items.some(item => [Tracking,'Accept', 'Reject'].includes(item.Status)) }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": false
+        }
+      },
+      "id": "1c662404-fff2-469c-a9c4-9dcef6e4c85f",
+      "name": "Check Row",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [
+        -440,
+        -1380
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU",
+          "mode": "list",
+          "cachedResultName": "instagram content history",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 935218977,
+          "mode": "list",
+          "cachedResultName": "Logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit#gid=935218977"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Call Log": "Approval Process: Skipped: No content status with Reject or Accept found for Human "
+          },
+          "matchingColumns": [
+            "Call Log"
+          ],
+          "schema": [
+            {
+              "id": "Call Log",
+              "displayName": "Call Log",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "93dd39e4-042d-44c0-b6f3-7e4079250c19",
+      "name": "Log Error to Sheets2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -100,
+        -1380
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Hs12up00RYeUYhHs",
+          "name": "Google Sheets account 4"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "Google Sheet Trigger = Workflow \n",
+        "height": 320,
+        "width": 1980
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        -1160
+      ],
+      "id": "73bd5934-135e-4c20-805c-314a95f43086",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Approval Proccess Workflow\n",
+        "height": 580,
+        "width": 2340,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        -700
+      ],
+      "id": "09eb546a-0dd4-4ff0-8ef7-e9627c8ceda4",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Weekly Schedule (Monday 9 AM)": {
+      "main": [
+        [
+          {
+            "node": "Set Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Batch Data": {
+      "main": [
+        [
+          {
+            "node": "Prepare Batch Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Batch Summary": {
+      "main": [
+        [
+          {
+            "node": "Check Items Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Items Exist": {
+      "main": [
+        [
+          {
+            "node": "New Array with Pending Review to Process",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack No Items Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack No Items Notification": {
+      "main": [
+        [
+          {
+            "node": "Log Error to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Variables": {
+      "main": [
+        [
+          {
+            "node": "Fetch Batch Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Approval Email": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Get Data Google Sheet Bacht ID and Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Variables1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack No Items Notification1": {
+      "main": [
+        [
+          {
+            "node": "Log Error to Sheets2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Update Data Paralleling by API Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Data Google Sheet Bacht ID and Status": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Array with Pending Review to Process": {
+      "main": [
+        [
+          {
+            "node": "Create Approval Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Data Paralleling by API Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Slack Success Email Notification1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Array with Accept and Reject to Process": {
+      "main": [
+        [
+          {
+            "node": "Update Data Paralleling by API Google Sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Variables1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Batch Summary1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Batch Summary1": {
+      "main": [
+        [
+          {
+            "node": "New Array with Accept and Reject to Process",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        []
+      ]
+    },
+    "Check Row": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Slack No Items Notification1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "40f45bf9-834b-4009-b8ae-0cb03983e9c0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "28a7da0c21649fe5ac251e08696a0b9513135217fdb87254be99700c570f4293"
+  },
+  "id": "bsdutCQq53qqV6OF",
+  "tags": [
+    {
+      "createdAt": "2025-07-02T21:58:37.624Z",
+      "updatedAt": "2025-07-02T21:58:37.624Z",
+      "id": "EBeS5dtxuDdAKz6E",
+      "name": "Approval Process"
+    }
+  ]
+}

@@ -1,0 +1,685 @@
+{
+  "name": "auto_IG_generator_poster_#4",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "751cf797-8dfc-4fe2-920a-5c1caaea7537",
+      "name": "Daily Trigger - 8 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -3420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate target date (today + 3 days)\nconst today = new Date();\nconst targetDate = new Date(today);\ntargetDate.setDate(today.getDate() + 3);\n\n// Format as YYYY-MM-DD for comparison\nconst formattedDate = targetDate.toISOString().split('T')[0];\n\n// Also get current timestamp for logging\nconst currentTimestamp = new Date().toISOString();\n\nreturn {\n  targetDate: formattedDate,\n  currentTimestamp: currentTimestamp,\n  searchDate: targetDate.toDateString()\n};"
+      },
+      "id": "2f71e1e1-77b1-4e98-8f72-83b6d1d8da9a",
+      "name": "Calculate Target Date",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.sheetId }}",
+          "mode": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "d94a8a0c-037a-431a-859a-ce4f2c4a1608",
+      "name": "Get Batch Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -2920,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Hs12up00RYeUYhHs",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c7d14e52-bf0a-4016-d5c4-e1f2a6b7c8d9",
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "Accept Status",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "d8e25f63-c01b-4127-e6d5-f2a7b8c9d0ea",
+              "leftValue": "={{ $json[\"Batch ID\"] }}",
+              "rightValue": "={{ $json[\"Batch ID\"] }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1d1a6a44-cbe7-47da-a569-dbd04f914ec8",
+      "name": "Filter Approved Content",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        -2760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "f0a47185-e23d-4349-a8f7-b4c9d0e1f2a3",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "cdacf3cd-f51f-4f69-8737-0f6d7a5189d5",
+      "name": "Check if Content Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/=YOUR_INSTAGRAM_ACCOUNT_ID/media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image_url",
+              "value": "={{ $json['Image URL'] }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $json.Caption }}"
+            },
+            {
+              "name": "media_type",
+              "value": "STORIES"
+            },
+            {
+              "name": "access_token",
+              "value": "=YOUR_ACCESS_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "156c9e1b-4118-4cd9-a42e-85f399e4eb5d",
+      "name": "Create Instagram Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -2340,
+        140
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/=YOUR_INSTAGRAM_ACCOUNT_ID/media_publish",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "=YOUR_ACCESS_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d609d5d8-1cf5-45fe-99a8-fdd5e6157bd2",
+      "name": "Publish to Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -2140,
+        140
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare log entry for successful publication\nconst originalData = $('Filter Approved Content').item.json;\nconst mediaResponse = $('Create Instagram Media').item.json;\nconst publishResponse = $json;\n\nreturn {\n  'Image ID': mediaResponse.id || 'N/A',\n  'Post Status': 'Success',\n  'Post Date/Time': new Date().toISOString(),\n  'Error Message': '',\n  'Event Name': originalData['Event Name'],\n  'Original Date': originalData.Date\n};"
+      },
+      "id": "60325373-e002-4ca2-b4eb-ab7de4244bfb",
+      "name": "Prepare Success Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1880,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Set Variables1').all()[0].json.sheetId }}",
+          "mode": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 935218977,
+          "mode": "list",
+          "cachedResultName": "Logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit#gid=935218977"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [
+            "Call Log"
+          ],
+          "schema": [
+            {
+              "id": "Call Log",
+              "displayName": "Call Log",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "6851e20a-6421-4e70-ac31-cbed2bbfdda5",
+      "name": "Log Success to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -1660,
+        240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Hs12up00RYeUYhHs",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Move published content to permanent storage\nconst originalData = $('Filter Approved Content').item.json;\nconst batchId = originalData['Batch ID'];\nconst eventName = originalData['Event Name'];\nconst imageUrl = originalData['Image URL'];\n\n// Extract filename from URL\nconst urlParts = imageUrl.split('/');\nconst filename = urlParts[urlParts.length - 1];\n\nreturn {\n  sourcePath: `images/${batchId}/${filename}`,\n  destinationPath: `posted/${batchId}/${filename}`,\n  batchId: batchId,\n  eventName: eventName,\n  imageUrl: imageUrl\n};"
+      },
+      "id": "c0783d1c-24d5-46c6-ac6c-2cc91687d802",
+      "name": "Prepare File Move",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1440,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "requestOptions": {}
+      },
+      "id": "d4210b01-d7f4-4c62-86ff-9b735e920792",
+      "name": "Move to Posted Folder",
+      "type": "n8n-nodes-base.googleCloudStorage",
+      "typeVersion": 1,
+      "position": [
+        -1220,
+        240
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare error log entry\nconst originalData = $('Filter Approved Content').item.json;\nconst errorInfo = $json;\n\nreturn {\n  'Image ID': 'N/A',\n  'Post Status': 'Failed',\n  'Post Date/Time': new Date().toISOString(),\n  'Error Message': errorInfo.message || JSON.stringify(errorInfo),\n  'Event Name': originalData['Event Name'],\n  'Original Date': originalData.Date\n};"
+      },
+      "id": "3afa901b-2b1a-40c3-b973-ed615f105755",
+      "name": "Prepare Error Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Set Variables1').all()[0].json.sheetId }}",
+          "mode": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 935218977,
+          "mode": "list",
+          "cachedResultName": "Logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU/edit#gid=935218977"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [
+            "Call Log"
+          ],
+          "schema": [
+            {
+              "id": "Call Log",
+              "displayName": "Call Log",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "id": "83159f18-8cac-4ef8-80cc-f4e2b6534805",
+      "name": "Log Error to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -2000,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Hs12up00RYeUYhHs",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "🚨 Instagram Publishing Failed\n\nEvent: {{ $('Filter Approved Content').item.json['Event Name'] }}\nScheduled Date: {{ $('Filter Approved Content').item.json.Date }}\nError: {{ $json.message || 'Unknown error' }}\n\nPlease check the logs and retry manually if needed.",
+        "otherOptions": {}
+      },
+      "id": "713611c0-e7bd-4504-842f-442a0c09d949",
+      "name": "Send Error to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [
+        -1820,
+        420
+      ],
+      "webhookId": "e5afd341-f2b1-4be6-96fd-fefcb91f4227",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "text": "✅ No content scheduled for publication today\n\nTarget Date: {{ $('Calculate Target Date').item.json.targetDate }}\nSearch performed at: {{ $('Calculate Target Date').item.json.currentTimestamp }}\n\nThis is normal if no events are scheduled 3 days from now.",
+        "otherOptions": {}
+      },
+      "id": "ffc4516d-d126-445f-a58a-9942caf86a1e",
+      "name": "No Content Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [
+        -2360,
+        420
+      ],
+      "webhookId": "462a77c4-52d8-48fc-88ae-f27ba050db6d",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "text": "✅ Instagram Story Published Successfully!\n\nEvent: {{ $('Filter Approved Content').item.json['Event Name'] }}\nScheduled Date: {{ $('Filter Approved Content').item.json.Date }}\nPublished at: {{ $('Prepare Success Log').item.json['Post Date/Time'] }}\nMedia ID: {{ $('Prepare Success Log').item.json['Image ID'] }}\n\nContent has been moved to permanent storage.",
+        "otherOptions": {}
+      },
+      "id": "98c85bf4-5d70-456c-8d46-8f527ff90769",
+      "name": "Success Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [
+        -1000,
+        240
+      ],
+      "webhookId": "1ff06728-bcee-49ff-a48e-a0e18421722e",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "sheetId",
+              "stringValue": "1gCNLmpg-V9xxNwDLmTKtd87pSmN-is5GIGB8BD8i-fU"
+            },
+            {
+              "name": "contentGenerationWorkflowId",
+              "stringValue": "="
+            },
+            {
+              "name": "slackChannel"
+            },
+            {
+              "name": "APPROVAL_EMAIL_RECIPIENT",
+              "stringValue": "john@launchpadfast.com"
+            },
+            {
+              "name": "GOOGLE_FORM_APPROVAL_URL",
+              "stringValue": "test"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0497e14a-6d11-473e-bb5d-63332c578902",
+      "name": "Set Variables1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        -3060,
+        300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Trigger - 8 AM": {
+      "main": [
+        [
+          {
+            "node": "Calculate Target Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Target Date": {
+      "main": [
+        [
+          {
+            "node": "Set Variables1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Batch Data": {
+      "main": [
+        [
+          {
+            "node": "Filter Approved Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Approved Content": {
+      "main": [
+        [
+          {
+            "node": "Check if Content Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Content Found": {
+      "main": [
+        [
+          {
+            "node": "Create Instagram Media",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Content Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Instagram Media": {
+      "main": [
+        [
+          {
+            "node": "Publish to Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish to Instagram": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Success Log": {
+      "main": [
+        [
+          {
+            "node": "Log Success to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Success to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Prepare File Move",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare File Move": {
+      "main": [
+        [
+          {
+            "node": "Move to Posted Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Posted Folder": {
+      "main": [
+        [
+          {
+            "node": "Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Variables1": {
+      "main": [
+        [
+          {
+            "node": "Get Batch Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Content Notification": {
+      "main": [
+        [
+          {
+            "node": "Prepare Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Error Log": {
+      "main": [
+        [
+          {
+            "node": "Log Error to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Send Error to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d2bc69e3-e6a5-4d34-bafe-8c715f8adc7b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "28a7da0c21649fe5ac251e08696a0b9513135217fdb87254be99700c570f4293"
+  },
+  "id": "aUrh9ZbZ2npuyyyu",
+  "tags": [
+    {
+      "createdAt": "2025-07-05T18:09:36.047Z",
+      "updatedAt": "2025-07-05T18:09:36.047Z",
+      "id": "9SEEm2HsELxalty3",
+      "name": "instagram-automation"
+    },
+    {
+      "createdAt": "2025-07-02T21:57:33.451Z",
+      "updatedAt": "2025-07-02T21:57:33.451Z",
+      "id": "PM9y9QxY9lsRHLeU",
+      "name": "Content Generation"
+    },
+    {
+      "createdAt": "2025-07-02T21:55:58.615Z",
+      "updatedAt": "2025-07-02T21:55:58.615Z",
+      "id": "sZmccVasFp3L3Hvc",
+      "name": "RSS Monitoring"
+    }
+  ]
+}

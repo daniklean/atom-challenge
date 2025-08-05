@@ -1,0 +1,669 @@
+{
+  "name": "Sistema Automatización Leads y Pagos",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook-leads",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-inicial",
+      "name": "Webhook - Recepción Datos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "lead-capture"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition1",
+              "leftValue": "={{ $json.telefono }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "id": "condition2",
+              "leftValue": "={{ $json.correo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "validar-datos",
+      "name": "Validar Datos Requeridos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM leads WHERE telefono = $1 OR correo = $2",
+        "additionalFields": {
+          "queryParameters": "={{ [$json.telefono, $json.correo] }}"
+        }
+      },
+      "id": "verificar-lead-existente",
+      "name": "Verificar Lead Existente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition1",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "lead-existe",
+      "name": "¿Lead Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "leads",
+        "columns": "nombres, apellidos, telefono, correo, mensaje, fecha_registro, status",
+        "additionalFields": {
+          "values": [
+            "={{ $('Webhook - Recepción Datos').item.json.nombres }}",
+            "={{ $('Webhook - Recepción Datos').item.json.apellidos }}",
+            "={{ $('Webhook - Recepción Datos').item.json.telefono }}",
+            "={{ $('Webhook - Recepción Datos').item.json.correo }}",
+            "={{ $('Webhook - Recepción Datos').item.json.mensaje }}",
+            "={{ new Date().toISOString() }}",
+            "nuevo"
+          ]
+        }
+      },
+      "id": "insertar-nuevo-lead",
+      "name": "Insertar Nuevo Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1120, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": "public",
+        "table": "leads",
+        "updateKey": "correo",
+        "columnToMatchOn": "correo",
+        "valueToMatchOn": "={{ $('Webhook - Recepción Datos').item.json.correo }}",
+        "columnsUi": {
+          "columnToUpdate": [
+            {
+              "column": "ultimo_contacto",
+              "updateValue": "={{ new Date().toISOString() }}"
+            },
+            {
+              "column": "intentos_contacto",
+              "updateValue": "={{ $json.intentos_contacto + 1 }}"
+            }
+          ]
+        }
+      },
+      "id": "actualizar-lead-existente",
+      "name": "Actualizar Lead Existente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1120, 100],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://graph.facebook.com/v17.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $('Webhook - Recepción Datos').item.json.telefono }}\",\n  \"type\": \"interactive\",\n  \"interactive\": {\n    \"type\": \"button\",\n    \"header\": {\n      \"type\": \"text\",\n      \"text\": \"¡Hola {{ $('Webhook - Recepción Datos').item.json.nombres }}!\"\n    },\n    \"body\": {\n      \"text\": \"Gracias por tu interés en nuestros servicios de terapia. ¿En qué te podemos ayudar?\"\n    },\n    \"action\": {\n      \"buttons\": [\n        {\n          \"type\": \"reply\",\n          \"reply\": {\n            \"id\": \"ver_pagos\",\n            \"title\": \"Ver Pagos\"\n          }\n        },\n        {\n          \"type\": \"reply\",\n          \"reply\": {\n            \"id\": \"info_negocio\",\n            \"title\": \"Más Info\"\n          }\n        },\n        {\n          \"type\": \"reply\",\n          \"reply\": {\n            \"id\": \"agendar_cita\",\n            \"title\": \"Agendar Cita\"\n          }\n        }\n      ]\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "enviar-whatsapp-inicial",
+      "name": "Enviar WhatsApp Inicial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "whatsapp-auth",
+          "name": "WhatsApp API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.FROM_EMAIL }}",
+        "toEmail": "={{ $('Webhook - Recepción Datos').item.json.correo }}",
+        "subject": "¡Bienvenido {{ $('Webhook - Recepción Datos').item.json.nombres }}! - Información de nuestros servicios",
+        "emailType": "html",
+        "message": "<!DOCTYPE html>\n<html>\n<head>\n    <style>\n        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n        .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n        .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 10px 0; }\n        .services { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>¡Hola {{ $('Webhook - Recepción Datos').item.json.nombres }}!</h1>\n            <p>Gracias por tu interés en nuestros servicios de terapia</p>\n        </div>\n        <div class=\"content\">\n            <p>Hemos recibido tu mensaje: <em>{{ $('Webhook - Recepción Datos').item.json.mensaje }}</em></p>\n            \n            <div class=\"services\">\n                <h3>Nuestros Servicios:</h3>\n                <ul>\n                    <li>Terapia Individual - $80/sesión</li>\n                    <li>Terapia de Pareja - $120/sesión</li>\n                    <li>Terapia Familiar - $150/sesión</li>\n                    <li>Sesiones Online - $60/sesión</li>\n                </ul>\n            </div>\n            \n            <p>Para agendar tu cita, simplemente realiza el pago correspondiente y te enviaremos el link de Google Meet.</p>\n            \n            <a href=\"{{ $env.PAYMENT_LINK }}\" class=\"button\">Realizar Pago</a>\n            \n            <p>También puedes contactarnos por WhatsApp para más información.</p>\n            \n            <p>¡Esperamos poder ayudarte en tu proceso de bienestar!</p>\n        </div>\n    </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "enviar-email-bienvenida",
+      "name": "Enviar Email Bienvenida",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1340, 350],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credentials",
+          "name": "SMTP Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-whatsapp",
+      "name": "Webhook WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 600],
+      "webhookId": "whatsapp-responses"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition1",
+              "leftValue": "={{ $json.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.interactive?.button_reply?.id }}",
+              "rightValue": "ver_pagos",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "boton-ver-pagos",
+      "name": "Botón Ver Pagos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition1",
+              "leftValue": "={{ $json.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.interactive?.button_reply?.id }}",
+              "rightValue": "info_negocio",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "boton-info-negocio",
+      "name": "Botón Info Negocio",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 700]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://graph.facebook.com/v17.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.entry[0].changes[0].value.messages[0].from }}\",\n  \"type\": \"interactive\",\n  \"interactive\": {\n    \"type\": \"list\",\n    \"header\": {\n      \"type\": \"text\",\n      \"text\": \"Opciones de Pago\"\n    },\n    \"body\": {\n      \"text\": \"Selecciona el tipo de sesión que deseas:\"\n    },\n    \"action\": {\n      \"button\": \"Ver Opciones\",\n      \"sections\": [\n        {\n          \"title\": \"Servicios Disponibles\",\n          \"rows\": [\n            {\n              \"id\": \"pago_individual\",\n              \"title\": \"Terapia Individual\",\n              \"description\": \"$80 - 60 min\"\n            },\n            {\n              \"id\": \"pago_pareja\",\n              \"title\": \"Terapia de Pareja\",\n              \"description\": \"$120 - 90 min\"\n            },\n            {\n              \"id\": \"pago_familiar\",\n              \"title\": \"Terapia Familiar\",\n              \"description\": \"$150 - 90 min\"\n            },\n            {\n              \"id\": \"pago_online\",\n              \"title\": \"Sesión Online\",\n              \"description\": \"$60 - 60 min\"\n            }\n          ]\n        }\n      ]\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "mostrar-opciones-pago",
+      "name": "Mostrar Opciones Pago",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 450],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "whatsapp-auth",
+          "name": "WhatsApp API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://graph.facebook.com/v17.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.entry[0].changes[0].value.messages[0].from }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"🏥 *Sobre Nuestro Centro de Terapia*\\n\\n✨ Somos un centro especializado en bienestar mental y emocional con más de 10 años de experiencia.\\n\\n👨‍⚕️ *Nuestro Equipo:*\\n• Psicólogos clínicos certificados\\n• Terapeutas especializados en diferentes áreas\\n• Enfoque integral y personalizado\\n\\n🎯 *Especialidades:*\\n• Ansiedad y Depresión\\n• Terapia de Pareja\\n• Terapia Familiar\\n• Manejo del Estrés\\n• Desarrollo Personal\\n\\n📅 *Horarios:*\\nLunes a Viernes: 8:00 AM - 7:00 PM\\nSábados: 9:00 AM - 2:00 PM\\n\\n📍 *Modalidades:*\\n• Presencial (Consultorio)\\n• Online (Google Meet)\\n• Domicilio (casos especiales)\\n\\n¿Te gustaría agendar una consulta?\"\n  }\n}",
+        "options": {}
+      },
+      "id": "enviar-info-negocio",
+      "name": "Enviar Info Negocio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 750],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "whatsapp-auth",
+          "name": "WhatsApp API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "payment-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-pago",
+      "name": "Webhook Pago",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 900],
+      "webhookId": "payment-confirmation"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "validar-pago-exitoso",
+      "name": "Validar Pago Exitoso",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 900]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"success\", \"message\": \"Lead recibido correctamente\" } }}"
+      },
+      "id": "respuesta-webhook-inicial",
+      "name": "Respuesta Webhook Inicial",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"success\", \"message\": \"Mensaje procesado\" } }}"
+      },
+      "id": "respuesta-webhook-whatsapp",
+      "name": "Respuesta Webhook WhatsApp",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 650]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"success\", \"message\": \"Pago procesado correctamente\" } }}"
+      },
+      "id": "respuesta-webhook-pago",
+      "name": "Respuesta Webhook Pago",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 900]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"error\", \"message\": \"Datos requeridos faltantes\" } }}"
+      },
+      "id": "respuesta-error-datos",
+      "name": "Respuesta Error Datos",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Recepción Datos": {
+      "main": [
+        [
+          {
+            "node": "Validar Datos Requeridos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Datos Requeridos": {
+      "main": [
+        [
+          {
+            "node": "Verificar Lead Existente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta Error Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Lead Existente": {
+      "main": [
+        [
+          {
+            "node": "¿Lead Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Lead Existe?": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Lead Existente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insertar Nuevo Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Nuevo Lead": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp Inicial",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enviar Email Bienvenida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Lead Existente": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp Inicial",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enviar Email Bienvenida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp Inicial": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Webhook Inicial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Email Bienvenida": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Webhook Inicial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Botón Ver Pagos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Botón Info Negocio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Botón Ver Pagos": {
+      "main": [
+        [
+          {
+            "node": "Mostrar Opciones Pago",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta Webhook WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Botón Info Negocio": {
+      "main": [
+        [
+          {
+            "node": "Enviar Info Negocio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta Webhook WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mostrar Opciones Pago": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Webhook WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Info Negocio": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Webhook WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Pago": {
+      "main": [
+        [
+          {
+            "node": "Validar Pago Exitoso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Pago Exitoso": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Webhook Pago",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta Webhook Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-06-27T10:00:00.000Z",
+  "versionId": "1"
+}
