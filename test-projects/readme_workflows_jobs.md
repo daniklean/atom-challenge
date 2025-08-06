@@ -1,10 +1,10 @@
 # 📘 n8n Workflows: Workflows Jobs
 
-Este documento describe cinco flujos de trabajo creados en n8n para automatizar la recolección, procesamiento, revisión y publicación de contenido de eventos y productos, optimizado para redes sociales.\
-\
-(Quedan varios por explicar como el asap\_*firts\_workflow* 1)
-
+Este documento describe siete flujos de trabajo creados en n8n para automatizar la recolección, procesamiento, revisión y publicación de contenido de eventos y productos, optimizado para redes sociales.
 ---
+Acceda a la direccion URL previa de N8N que monte en Google Cloud COMPUTE, inicie sesion con las credenciales previas documentadas en el primer readme fuera de esta carpeta y puede ver los workflows importados de mis anteriores implementaciones.
+
+![workflow_up](./img/workflow_up.jpg)
 
 ## 📂 auto\_IG\_generator\_poster\_#1
 
@@ -14,11 +14,11 @@ Recolectar eventos relevantes con base en datos ingresados por el usuario, enriq
 
 ### 🔄 Flujo General
 
-1. **Form Submission (********`On form submission`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+1. **Form Submission (********`On form submission`********)**
 
    - Inicia el flujo cuando un usuario completa un formulario con datos como ciudad, país, rango de fechas e intereses.
 
-2. **LangChain AI Agent (********`AI Agent`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+2. **LangChain AI Agent (********`AI Agent`********)**
 
    - Genera eventos relevantes usando herramientas como:
      - `SerpAPI` para búsquedas web
@@ -26,11 +26,11 @@ Recolectar eventos relevantes con base en datos ingresados por el usuario, enriq
      - `Simple Memory` para mantener contexto
    - Usa un prompt predefinido con formato Markdown para generar descripciones atractivas de eventos.
 
-3. **AI Transform (********`AI Transform`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+3. **AI Transform (********`AI Transform`********)**
 
    - Parsea el JSON generado por el agente AI y lo transforma a un formato legible para Google Sheets.
 
-4. **Store Event Data (********`Google Sheets`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+4. **Store Event Data (********`Google Sheets`********)**
 
    - Guarda los eventos en un Google Sheet llamado "event database".
 
@@ -41,6 +41,8 @@ Recolectar eventos relevantes con base en datos ingresados por el usuario, enriq
 
 ---
 
+![workflow_1](./img/workflow_1.jpg)
+
 ## 📂 auto\_IG\_generator\_poster\_#2
 
 ### 🎯 Propósito
@@ -49,46 +51,48 @@ Generar contenido visual y textual para Instagram Stories usando IA, aplicar bra
 
 ### 🔄 Flujo General
 
-1. **Workflow Trigger (********`Workflow Trigger`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+1. **Workflow Trigger (********`Workflow Trigger`********)**
 
    - Inicia el flujo manualmente o desde otro flujo de automatización.
 
-2. **Set Variables (********`Set Variables`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+2. **Set Variables (********`Set Variables`********)**
 
    - Define variables necesarias como plantillas, IDs y URLs.
 
-3. **AI Agent (********`AI Agent`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+3. **AI Agent (********`AI Agent`********)**
 
    - Genera contenido textual:
      - `Instagram Story Caption`
      - `10-word Text Overlay`
 
-4. **Generar Imagen AI (********`AI Agent1`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\* + ****************************`Generate AI Image`****************************)**
+4. **Generar Imagen AI (********`AI Agent1`******** + ****************************`Generate AI Image`****************************)**
 
    - Crea una imagen relacionada con el evento usando IA generativa.
 
-5. **Subir imagen (********`img upload`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+5. **Subir imagen (********`img upload`********)**
 
    - Sube la imagen generada a ImgBB y obtiene URLs públicas.
 
-6. **Aplicar Branding (********`Apply Branding`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+6. **Aplicar Branding (********`Apply Branding`********)**
 
    - Usa la API de Bannerbear para aplicar el texto overlay y ajustar branding visual según plantilla.
 
-7. **Convertir y Guardar (********`Convert to File`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*, ****************************`Download Branded Image`****************************)**
+7. **Convertir y Guardar (********`Convert to File`********, ****************************`Download Branded Image`****************************)**
 
    - Convierte la imagen final en archivo descargable.
 
-8. **Guardar en Drive y Sheets (********`Google Drive`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*, ****************************`Google Sheets`****************************)**
+8. **Guardar en Drive y Sheets (********`Google Drive`********, ****************************`Google Sheets`****************************)**
 
    - Almacena imagen final en Google Drive.
    - Registra datos de publicación en Google Sheets.
 
-9. **Notificaciones (********`Success Notification`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*, ****************************`Error Notification`****************************)**
+9. **Notificaciones (********`Success Notification`********, ****************************`Error Notification`****************************)**
 
    - Notifica el resultado del proceso por Slack o correo si ocurre error.
 
 ---
+
+![workflow_2](./img/workflow_2.jpg)
 
 ## 📂 auto\_IG\_generator\_poster\_#3
 
@@ -98,39 +102,39 @@ Gestión semanal del contenido aprobado para publicación en Instagram, incluyen
 
 ### 🔄 Flujo General
 
-1. **Schedule Trigger (********`Weekly Schedule`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+1. **Schedule Trigger (********`Weekly Schedule`********)**
 
    - Se activa todos los lunes a las 9:00 AM para procesar contenido pendiente.
 
-2. **Set Variables (********`Set Variables`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+2. **Set Variables (********`Set Variables`********)**
 
    - Define variables globales como `sheetId`, destinatario de correos y URLs.
 
-3. **Fetch Batch Data (********`Google Sheets`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+3. **Fetch Batch Data (********`Google Sheets`********)**
 
    - Obtiene los datos de contenido desde Google Sheets (historial de contenido de IG).
 
-4. **Prepare Batch Summary (********`Prepare Batch Summary`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+4. **Prepare Batch Summary (********`Prepare Batch Summary`********)**
 
    - Genera el resumen de la semana con un batch ID único, total de ítems y fecha límite para revisión.
 
-5. **Check Items Exist (********`IF`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+5. **Check Items Exist (********`IF`********)**
 
    - Verifica si hay ítems con estado "Pending Review".
      - ✅ Sí: continúa con envío de correo.
      - ❌ No: envía notificación por Slack y guarda error en Google Sheets.
 
-6. **Filter Items (********`New Array with Pending Review to Process`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+6. **Filter Items (********`New Array with Pending Review to Process`********)**
 
    - Filtra los eventos para incluir solo los que necesitan revisión.
 
-7. **Generate Email HTML (********`Create Approval Email`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+7. **Generate Email HTML (********`Create Approval Email`********)**
 
    - Crea el correo HTML con botones para:
      - Revisar el documento de Google Sheets
      - Aprobar o rechazar vía formulario de Google
 
-8. **Send Email (********`Gmail`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+8. **Send Email (********`Gmail`********)**
 
    - Envía el correo de revisión al responsable.
 
@@ -152,6 +156,8 @@ Gestión semanal del contenido aprobado para publicación en Instagram, incluyen
 
 ---
 
+![workflow_3](./img/workflow_3.jpg)
+
 ## 📂 auto\_IG\_generator\_poster\_#4
 
 ### 🎯 Propósito
@@ -160,7 +166,7 @@ Publicar automáticamente historias de Instagram 3 días antes del evento progra
 
 ### 🔄 Flujo General
 
-1. **Daily Trigger (********`8 AM`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+1. **Daily Trigger (********`8 AM`********)**
 
    - Ejecuta el flujo diariamente a las 8:00 AM.
 
@@ -172,7 +178,7 @@ Publicar automáticamente historias de Instagram 3 días antes del evento progra
 
    - Establece valores como `sheetId`, canal de Slack, email, etc.
 
-4. **Get Batch Data (********`Google Sheets`********\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*)**
+4. **Get Batch Data (********`Google Sheets`********)**
 
    - Obtiene eventos desde Google Sheets para revisión y filtrado.
 
@@ -211,6 +217,8 @@ Publicar automáticamente historias de Instagram 3 días antes del evento progra
 - Notificaciones para éxito, error, o ausencia de contenido se pueden activar si se desea seguimiento.
 
 ---
+
+![workflow_4](./img/workflow_4.jpg)
 
 ## 📂 Workflow Bank (Testing)
 
@@ -286,6 +294,15 @@ Sistema completo para generar, aprobar y publicar contenido optimizado para múl
 
 ---
 
+![workflow_7](./img/workflow_7.jpg)
+
+## Webhooks de Validacion de informacion
+![workflow_5](./img/workflow_5.jpg)
+
+## ASAP_FIRTS_WORKFLOW_1: Buscador de Informacion de productos, generador de informacion de mercado, genera informes de avatar briefs de posibles ventas, genera imagenes de produtos con GPT_IMAGE_1 saca 3 variaciones del mismo, y sube todos los documentos a Google Drive (FUTURA IMPLEMENTACION PARA BOT DE TELEGRAM, NO CULMINADA EN ESTE CONTRATO).
+
+![workflow_6](./img/workflow_6.jpg)
+
 ## 🧩 Requisitos Técnicos
 
 - Google Workspace (Drive, Gmail)
@@ -302,5 +319,5 @@ Sistema completo para generar, aprobar y publicar contenido optimizado para múl
 - Calidad profesional, menor tiempo y mayor escalabilidad
 - Sistema robusto, modular, mantenible y extensible
 
-📩 **Contacto interno para soporte**: *[Agregar nombre o email del responsable]*
+📩 **Contacto interno para soporte**: *[ Luis Daniel Vieras Montilla: @daniklean email: danielvieras10@gmail.com / daniklean@proton.me ]*
 
